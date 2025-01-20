@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Eraser and Recover</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    canvas {
+      border: 1px solid #ccc;
+    }
+    .erase-cursor {
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="red" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>') 12 12, auto;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 p-8">
+  <div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold text-center mb-6">Image Eraser and Recover</h1>
+
+    <!-- File Upload -->
+    <div class="mb-4">
+      <input type="file" id="imageUpload" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+    </div>
+
+    <!-- Controls -->
+    <div class="flex gap-4 mb-4">
+      <button id="eraseMode" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">Erase Mode</button>
+      <button id="recoverMode" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">Recover Mode</button>
+      <div class="flex items-center gap-2">
+        <label for="brushSize" class="text-gray-700">Brush Size:</label>
+        <input type="number" id="brushSize" value="10" min="1" class="w-20 px-2 py-1 border rounded">
+      </div>
+      <button id="undo" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Undo</button>
+      <button id="download" class="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600">Download Image</button>
+    </div>
+
+    <!-- Canvas -->
+    <div class="bg-white p-4 rounded-lg shadow">
+      <canvas id="canvas" class="mx-auto"></canvas>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      let isEraseMode = false;
+      let isRecoverMode = false;
+      let brushSize = 10;
+      let isDrawing = false;
+      let image = null;
+      let history = [];
+      let historyIndex = -1;
+
+      // Load image from file input
+      document.getElementById('imageUpload').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+              canvas.width = img.width;
+              canvas.height = img.height;
+              ctx.drawImage(img, 0, 0);
+              image = img;
+              saveState(); // Save initial state
+            };
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+
+      // Toggle erase mode
+      document.getElementById('eraseMode').addEventListener('click', () => {
+        isEraseMode = true;
+        isRecoverMode = false;
+        canvas.classList.add('erase-cursor');
+      });
+
+      // Toggle recover mode
+      document.getElementById('recoverMode').addEventListener('click', () => {
+        isRecoverMode = true;
+        isEraseMode = false;
+        canvas.classList.remove('erase-cursor');
+      });
+
+      // Update brush size
+      document.getElementById('brushSize').addEventListener('input', (e) => {
+        brushSize = parseInt(e.target.value, 10);
+      });
+
+      // Undo functionality
+      document.getElementById('undo').addEventListener('click', () => {
+        if (historyIndex > 0) {
+          historyIndex--;
+          const imageData = history[historyIndex];
+          ctx.putImageData(imageData, 0, 0); // Restore the previous state
+        }
+      });
+
+      // Download image
+      document.getElementById('download').addEventListener('click', () => {
+        const link = document.createElement('a');
+        link.download = 'edited-image.png';
+        link.href = canvas.toDataURL();
+        link.click();
+      });
+
+      // Save the current state of the canvas
+      function saveState() {
+        if (historyIndex < history.length - 1) {
+          history = history.slice(0, historyIndex + 1); // Remove future states if undo was used
+        }
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        history.push(imageData);
+        historyIndex++;
+      }
+
+      // Handle drawing on the canvas
+      canvas.addEventListener('mousedown', (e) => {
+        if (isEraseMode || isRecoverMode) {
+          isDrawing = true;
+          ctx.globalCompositeOperation = isEraseMode ? 'destination-out' : 'source-over';
+          ctx.beginPath();
+          ctx.arc(e.offsetX, e.offsetY, brushSize, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      canvas.addEventListener('mousemove', (e) => {
+        if (isDrawing && (isEraseMode || isRecoverMode)) {
+          ctx.beginPath();
+          ctx.arc(e.offsetX, e.offsetY, brushSize, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      canvas.addEventListener('mouseup', () => {
+        if (isDrawing) {
+          isDrawing = false;
+          saveState(); // Save state after drawing
+        }
+      });
+
+      canvas.addEventListener('mouseleave', () => {
+        if (isDrawing) {
+          isDrawing = false;
+          saveState(); // Save state if mouse leaves canvas
+        }
+      });
+    });
+  </script>
+</body>
+</html>

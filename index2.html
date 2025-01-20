@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+<canvas id="transparentImageCanvas" style="background: black"></canvas>
+
+<canvas id="originalImageCanvas"></canvas>
+
+<script>
+    /**
+     *
+     * @param {HTMLCanvasElement} canvas
+     * @param {HTMLImageElement} img
+     */
+    function drawImage(canvas, img) {
+        const ctx = canvas.getContext("2d");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    }
+
+    /**
+     *
+     * @param {HTMLCanvasElement} canvas
+     * @param {number} x
+     * @param {number} y
+     * @param {number} size
+     */
+    function eraseImageBackground(canvas, x, y, size) {
+
+    }
+
+    const transparentImageCanvas = document.getElementById("transparentImageCanvas");
+    const originalImageCanvas = document.getElementById("originalImageCanvas");
+
+    const transparentImg = new Image();
+    transparentImg.src = "transparent.png";
+
+    const originalImg = new Image();
+    originalImg.src = "original.jpeg";
+
+    /**
+     *
+     * @param {HTMLImageElement} image
+     * @returns {Promise<HTMLImageElement>}
+     */
+    function loadImage(image) {
+        return new Promise((resolve, reject) => {
+            image.onload = function () {
+                resolve(image);
+            }
+
+            image.onerror = function () {
+                reject(image);
+            };
+        });
+    }
+
+    Promise.all([loadImage(transparentImg), loadImage(originalImg)])
+        .then(_ => {
+            drawImage(transparentImageCanvas, transparentImg)
+            drawImage(originalImageCanvas, originalImg);
+        }).catch(error => {
+        alert('Error: ' + error);
+    });
+
+    let isTracked = false;
+
+    transparentImageCanvas.addEventListener('mousedown', _ => {
+        isTracked = true;
+    });
+
+    transparentImageCanvas.addEventListener('mousemove', event => {
+        if (isTracked) {
+            const rect = transparentImageCanvas.getBoundingClientRect();
+            const x = event.x - rect.x;
+            const y = event.y - rect.y;
+
+            const originalImageData = originalImageCanvas.getContext("2d").getImageData(x, y, 5, 5);
+            transparentImageCanvas.getContext("2d").putImageData(originalImageData, x, y);
+        }
+    })
+
+    transparentImageCanvas.addEventListener("mouseup", (event) => {
+        isTracked = false;
+    });
+</script>
+</body>
+</html>
